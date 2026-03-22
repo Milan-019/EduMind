@@ -17,7 +17,8 @@ from services.router_ai import ai_router
 from routers.auth import router as auth_router
 from routers.quiz import router as quiz_router
 # from routers.analytics import router as analytics_router
-# from routers.planner import router as planner_router
+from routers.planner import router as planner_router
+from routers.review import router as review_router
 
 app = FastAPI(
     title="EduMind API",
@@ -39,7 +40,8 @@ app.include_router(ai_router,        prefix="/ai")
 app.include_router(auth_router,      prefix="/auth")
 app.include_router(quiz_router,      prefix="/quiz")
 # app.include_router(analytics_router, prefix="/analytics")
-# app.include_router(planner_router,   prefix="/planner")
+app.include_router(planner_router,   prefix="/planner")
+app.include_router(review_router, prefix="/review")
 
 @app.get("/")
 def health():

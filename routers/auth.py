@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 import bcrypt
 from jose import jwt
@@ -10,6 +11,7 @@ import os
 
 router = APIRouter(tags=["Auth"])
 SECRET = os.getenv("SECRET_KEY", "edumind_secret_2026")
+security = HTTPBearer()
 
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
@@ -33,9 +35,9 @@ def make_token(user_id: int):
     exp = datetime.utcnow() + timedelta(days=7)
     return jwt.encode({"sub": str(user_id), "exp": exp}, SECRET, algorithm="HS256")
 
-def get_current_user(authorization: str = Header(...), db: Session = Depends(get_db)):
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
     try:
-        token   = authorization.replace("Bearer ", "")
+        token   = credentials.credentials
         payload = jwt.decode(token, SECRET, algorithms=["HS256"])
         user    = db.query(User).filter(User.id == int(payload["sub"])).first()
         if not user:
