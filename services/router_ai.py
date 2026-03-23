@@ -55,6 +55,7 @@ def _get_latest_pdf_filename() -> str | None:
 
 class TutorRequest(BaseModel):
     question: str = Field(..., min_length=3, max_length=1000)
+    history: list = Field(default_factory=list, description="Array of historical conversational dicts.")
     filename: str | None = Field(None, description="Optional filename to query. Defaults to latest PDF.")
 
 class TutorResponse(BaseModel):
@@ -127,7 +128,14 @@ async def ask_tutor(req: TutorRequest):
     """Answer a student question using RAG-retrieved context."""
     filename = req.filename or _get_latest_pdf_filename()
     chunks = await _run_sync(retrieve, req.question, 10, filename)
-    answer = await _run_sync(tutor_answer, req.question, chunks)
+    
+    # Inject history right into the question string so we don't have to change gemini_service.py!
+    query_text = req.question
+    if req.history:
+        history_lines = [f"{m.get('role', 'user').upper()}: {m.get('parts', [{}])[0].get('text', '')}" for m in req.history[-4:]]
+        query_text = "Previous conversation context:\n" + "\n".join(history_lines) + "\n\nCurrent Question: " + req.question
+        
+    answer = await _run_sync(tutor_answer, query_text, chunks)
     return TutorResponse(
         question=req.question,
         answer=answer,

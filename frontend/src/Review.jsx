@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 
 const API_BASE = 'http://localhost:8000';
+const MD = { remarkPlugins: [remarkMath], rehypePlugins: [rehypeKatex] };
 
 export default function Review() {
     const [dueCards, setDueCards] = useState([]);
     const [currentCard, setCurrentCard] = useState(null);
     const [showAnswer, setShowAnswer] = useState(false);
+    const [revealedContext, setRevealedContext] = useState("");
     const [loading, setLoading] = useState(false);
     
     // Add Card State
@@ -51,10 +56,38 @@ export default function Review() {
             setDueCards(remaining);
             setCurrentCard(remaining.length > 0 ? remaining[0] : null);
             setShowAnswer(false);
+            setRevealedContext("");
         } catch(err) {
             alert(err.message);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleReveal = async () => {
+        setShowAnswer(true);
+        setRevealedContext("Generating AI explanation...");
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${API_BASE}/ai/tutor`, {
+                method: 'POST',
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    question: `Briefly define and explain the core concept of "${currentCard.topic}" in the context of ${currentCard.subject}. Keep it under 3 concise sentences so I can verify my flashcard memory.`,
+                    history: []
+                })
+            });
+            const data = await res.json();
+            if(res.ok) {
+                setRevealedContext(data.answer);
+            } else {
+                setRevealedContext("Could not load AI explanation.");
+            }
+        } catch(err) {
+            setRevealedContext("Network error loading AI explanation.");
         }
     };
 
@@ -102,12 +135,18 @@ export default function Review() {
                     <h3 className="font-headline text-4xl font-bold text-on-surface mb-12">{currentCard.topic}</h3>
 
                     {!showAnswer ? (
-                        <button onClick={() => setShowAnswer(true)} className="px-8 py-3.5 bg-primary text-white font-bold rounded-2xl shadow-lg hover:-translate-y-1 transition-all">
+                        <button onClick={handleReveal} className="px-8 py-3.5 bg-primary text-white font-bold rounded-2xl shadow-lg hover:-translate-y-1 transition-all">
                             Reveal Knowledge
                         </button>
                     ) : (
-                        <div className="space-y-6 pt-6 border-t border-surface-container">
-                            <p className="text-sm font-bold uppercase tracking-widest text-outline">How well did you recall this?</p>
+                        <div className="space-y-8 pt-6 border-t border-surface-container animate-slide-up">
+                            {/* The Actual Answer to verify against! */}
+                            <div className="bg-surface-container-highest/50 rounded-2xl p-6 text-left shadow-inner border border-outline/10 text-on-surface-variant font-medium text-sm leading-relaxed prose prose-sm max-w-none prose-headings:text-on-surface">
+                                <ReactMarkdown {...MD}>{revealedContext}</ReactMarkdown>
+                            </div>
+                            
+                            <div className="space-y-4">
+                                <p className="text-sm font-bold uppercase tracking-widest text-outline">How accurate was your recall?</p>
                             <div className="flex flex-wrap justify-center gap-3">
                                 {[
                                     { q: 5, label: "Perfect (5)", color: "bg-green-600" },
@@ -128,8 +167,9 @@ export default function Review() {
                                 ))}
                             </div>
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
+            </div>
             ) : (
                 <div className="glass-card p-12 rounded-3xl text-center flex flex-col items-center">
                     <span className="material-symbols-outlined text-6xl text-primary mb-4 opacity-50">task_alt</span>
