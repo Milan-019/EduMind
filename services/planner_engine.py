@@ -117,12 +117,23 @@ Return ONLY a valid JSON array for the next {min(days_remaining, 30)} days:
   }}
 ]"""
 
-    raw  = _call_fn(prompt)
-    clean = re.sub(r"```json|```", "", raw).strip()
     try:
+        raw  = _call_fn(prompt)
+        clean = re.sub(r"```json|```", "", raw).strip()
         plan = json.loads(clean)
-    except:
-        plan = []
+    except Exception as e:
+        print(f"Fallback due to Gemini Error: {e}")
+        plan = [{
+            "date": str(date.today()),
+            "day": "Notice",
+            "topics": [{
+                "topic": "API Limit Reached",
+                "subject": "EduMind System",
+                "hours": 0,
+                "priority": "Critical",
+                "reason": "You have exhausted your free-tier Gemini API quota. Please wait or upgrade your API Key."
+            }]
+        }]
 
     snapshot = {p.topic: p.mastery_score for p in progress_rows}
     sp = StudyPlan(

@@ -35,10 +35,10 @@ def _call(prompt: str) -> str:
         except Exception as e:
             last_err = e
             if attempt == len(models_to_try) - 1:
-                print(f"❌ [CRITICAL] All fallback models failed. Last error: {e}")
+                print(f" [CRITICAL] All fallback models failed. Last error: {e}")
                 raise last_err
             else:
-                print(f"⚠️ Limit or error hit on {model_name}, switching to backup...")
+                print(f"Limit or error hit on {model_name}, switching to backup...")
                 continue
 
 
@@ -92,7 +92,11 @@ Student's question: {question}
 
 Answer:"""
 
-    return _call(prompt)
+    try:
+        return _call(prompt)
+    except Exception as e:
+        print(f"Fallback due to Gemini Error: {e}")
+        return "I apologize, but your Gemini Free-Tier API limit has been exceeded. Please upgrade your API key or wait until the quota resets to continue asking questions!"
 
 
 def generate_quiz(topic: str, context_chunks: list[str], num_questions: int = 5) -> list[dict]:
@@ -125,13 +129,19 @@ Respond with ONLY a valid JSON array, no other text. Format:
 ]"""
 
     for attempt in range(3):
-        raw = _call(prompt)
         try:
+            raw = _call(prompt)
             questions = _extract_json(raw)
             break
-        except Exception:
+        except Exception as e:
             if attempt == 2:
-                questions = []
+                print(f"Fallback due to Gemini Error: {e}")
+                questions = [{
+                    "question": "The Gemini API rate limit has been reached. What should you do?",
+                    "options": ["A. Panic", "B. Wait for the quota to reset", "C. Upgrade your API Key", "D. Both B and C"],
+                    "answer": "D",
+                    "explanation": "Google's free-tier Gemini API has strict rate limits. Please try again tomorrow or provide a new API key to continue generating unlimited quizzes."
+                }]
 
     validated = []
     for q in questions:
@@ -216,4 +226,8 @@ def explain_weak_areas(weak_areas: list[str], context_chunks: list[str]) -> str:
 
 Be encouraging, practical and concise. Use bullet points."""
 
-    return _call(prompt)
+    try:
+        return _call(prompt)
+    except Exception as e:
+        print(f"Fallback due to Gemini Error: {e}")
+        return "⚠️ You have reached your Gemini API free-tier limit. Study Insights cannot be generated right now. Check back tomorrow!"

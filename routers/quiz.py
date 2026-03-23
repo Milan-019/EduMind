@@ -6,8 +6,8 @@ from typing import List
 from database import get_db
 from models.db_models import QuizResult
 from routers.auth import get_current_user
-# from services.analytics_engine import update_syllabus_progress
-# from services.planner_engine import should_rebalance, trigger_replan
+from services.analytics_engine import update_syllabus_progress
+from services.planner_engine import should_rebalance, trigger_replan
 from services.gemini_service import _call
 
 router = APIRouter(tags=["Quiz"])  # renamed from quiz_router to router
@@ -70,17 +70,17 @@ async def submit_quiz(
         ))
 
         # 2. Update syllabus mastery for this topic
-        # update_syllabus_progress(
-        #     db, user.id, req.topic, req.subject, is_correct
-        # )
+        update_syllabus_progress(
+            db, user.id, req.topic, req.subject, is_correct
+        )
 
     db.commit()
 
     # 3. Auto-rebalance study plan if mastery shifted
     rebalanced = False
-    # if should_rebalance(db, user.id) and user.exam_date:
-    #     trigger_replan(db, user, _call)
-    #     rebalanced = True
+    if should_rebalance(db, user.id) and user.exam_date:
+        trigger_replan(db, user, _call)
+        rebalanced = True
 
     return QuizSubmitResponse(
         topic=req.topic,
